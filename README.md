@@ -50,19 +50,82 @@ Given a user query, the system returns:
 ## 🏗️ Architecture
 
 ```
-User Query
-   ↓
-Query Analyzer
-   ↓
-Retriever (ChromaDB)
-   ↓
-Retrieval Evaluator  ⭐
-   ↓
-LLM Generator (LangChain)
-   ↓
-Failure Analyzer  ⭐
-   ↓
-API Response
+                           ┌─────────────────────────────┐
+                           │         Frontend UI         │
+                           │  Chat + Sources + Metrics   │
+                           └──────────────┬──────────────┘
+                                          │ HTTP
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                            FastAPI Layer                             │
+│  ┌───────────────────────┐        ┌───────────────────────────────┐  │
+│  │   /query Endpoint     │        │   Middleware                  │  │
+│  │  - validation         │        │  - logging                    │  │
+│  │  - routing            │        │  - latency tracking           │  │
+│  └──────────┬────────────┘        │  - error handling             │  │
+│             │                     └──────────────┬────────────────┘  │
+│             ▼                                    ▼                   │
+│  ┌───────────────────────────┐      ┌────────────────────────────┐   │
+│  │     Query Analyzer        │      │     Debug / Trace Layer    │   │
+│  │  - intent detection       │      │  - scores                  │   │
+│  │  - entity extraction      │      │  - retrieved docs          │   │
+│  │  - expected answer type   │      │  - pipeline trace          │   │
+│  └──────────┬────────────────┘      └──────────────┬─────────────┘   │
+│             │                                      │                 │
+│             ▼                                      │                 │
+│  ┌───────────────────────────┐                     │                 │
+│  │       Retriever           │                     │                 │
+│  │  (ChromaDB Vector Store)  │                     │                 │
+│  │  - top-k semantic search  │                     │                 │
+│  │  - metadata filtering     │                     │                 │
+│  └──────────┬────────────────┘                     │                 │
+│             │                                      │                 │
+│             ▼                                      │                 │
+│  ┌───────────────────────────┐                     │                 │
+│  │   Retrieval Evaluator ⭐   │                     │                 │
+│  │  - similarity score       │                     │                 │
+│  │  - entity coverage        │                     │                 │
+│  │  - freshness score        │                     │                 │
+│  │  - diversity score        │                     │                 │
+│  └──────────┬────────────────┘                     │                 │
+│             │                                      │                 │
+│             ▼                                      │                 │
+│  ┌───────────────────────────┐                     │                 │
+│  │     LLM Generator         │                     │                 │
+│  │   (LangChain + Prompt)    │                     │                 │
+│  │  - grounded generation    │                     │                 │
+│  │  - citation injection     │                     │                 │
+│  └──────────┬────────────────┘                     │                 │
+│             │                                      │                 │
+│             ▼                                      │                 │
+│  ┌───────────────────────────┐                     │                 │
+│  │    Failure Analyzer ⭐     │◄────────────────────┘                 │
+│  │  - map scores → failure   │                                       │
+│  │  - explanation + hints    │                                       │
+│  │  - confidence estimation  │                                       │
+│  └──────────┬────────────────┘                                       │
+│             │                                                        │
+│             ▼                                                        │
+│      ┌───────────────────────┐                                       │
+│      │     JSON Response     │                                       │
+│      │ answer + diagnostics  │                                       │
+│      └───────────────────────┘                                       │
+└─────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────┐
+│     Ingestion Pipeline       │
+│  - load (PDF/MD/CSV)        │
+│  - chunk (semantic/fixed)   │
+│  - embed                    │
+│  - store (ChromaDB)         │
+└──────────────┬───────────────┘
+               │
+               ▼
+        ┌───────────────┐
+        │  Vector Store │
+        │   (ChromaDB)  │
+        └───────────────┘
 ```
 
 ---
