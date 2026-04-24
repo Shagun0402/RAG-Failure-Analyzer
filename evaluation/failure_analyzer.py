@@ -4,7 +4,15 @@ from evaluation.retrieval_evaluator import RetrievalMetrics
 class FailureAnalyzer:
     """Maps retrieval metrics to a failure category and confidence."""
 
-    def analyze(self, metrics: RetrievalMetrics, had_retrieval: bool) -> tuple[str, str, float]:
+    def analyze(
+        self,
+        metrics: RetrievalMetrics,
+        had_retrieval: bool | None = None,
+        retrieved_chunks: list[str] | None = None,
+    ) -> tuple[str, str, float]:
+        if had_retrieval is None:
+            had_retrieval = bool(retrieved_chunks)
+
         if not had_retrieval:
             return "low", "no retrieval", 0.1
 

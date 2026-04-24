@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from retrieval.retriever import RetrievedChunk
 
@@ -15,9 +16,16 @@ class RetrievalMetrics:
 class RetrievalEvaluator:
     """Evaluates retrieved chunks using deterministic heuristics."""
 
-    def evaluate(self, query: str, retrieved_chunks: list[RetrievedChunk], current_year: int = 2026) -> RetrievalMetrics:
+    def evaluate(
+        self,
+        query: str,
+        retrieved_chunks: list[RetrievedChunk],
+        current_year: int | None = None,
+    ) -> RetrievalMetrics:
         if not retrieved_chunks:
             return RetrievalMetrics(0.0, 0.0, 0.0, 0.0, 0.0)
+
+        resolved_year = current_year or datetime.now(timezone.utc).year
 
         query_tokens = self._tokenize(query)
         combined_text = " ".join(chunk.text for chunk in retrieved_chunks)
@@ -32,7 +40,7 @@ class RetrievalEvaluator:
         else:
             entity_coverage = similarity_score
 
-        avg_age = sum(max(current_year - chunk.year, 0) for chunk in retrieved_chunks) / len(retrieved_chunks)
+        avg_age = sum(max(resolved_year - chunk.year, 0) for chunk in retrieved_chunks) / len(retrieved_chunks)
         freshness_score = max(0.0, 1 - (avg_age / 5))
 
         unique_sources = len({chunk.source_id for chunk in retrieved_chunks})

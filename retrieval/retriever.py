@@ -32,6 +32,9 @@ class Retriever:
         ]
 
     def retrieve(self, query: str, k: int = 3) -> list[RetrievedChunk]:
+        if k <= 0:
+            return []
+
         query_tokens = self._tokenize(query)
         scored_chunks: list[RetrievedChunk] = []
 
@@ -43,7 +46,11 @@ class Retriever:
             scored_chunks.append(RetrievedChunk(text=text, source_id=source_id, year=year, score=score))
 
         scored_chunks.sort(key=lambda chunk: chunk.score, reverse=True)
-        return scored_chunks[:k]
+        return scored_chunks[: min(k, len(scored_chunks))]
+
+    def retrieve_texts(self, query: str, k: int = 3) -> list[str]:
+        """Backward-compatible helper for call sites that still expect plain strings."""
+        return [chunk.text for chunk in self.retrieve(query=query, k=k)]
 
     @staticmethod
     def _tokenize(text: str) -> set[str]:

@@ -13,13 +13,17 @@ class RetrieverTests(unittest.TestCase):
         self.assertEqual(len(chunks), 3)
         self.assertGreaterEqual(chunks[0].score, chunks[1].score)
 
+    def test_retrieve_with_non_positive_k_returns_empty(self) -> None:
+        retriever = Retriever()
+        self.assertEqual(retriever.retrieve("query", k=0), [])
+
 
 class EvaluatorTests(unittest.TestCase):
     def test_evaluate_includes_overall_score(self) -> None:
         retriever = Retriever()
         evaluator = RetrievalEvaluator()
         chunks = retriever.retrieve("What is Product X pricing trend?")
-        metrics = evaluator.evaluate("What is Product X pricing trend?", chunks)
+        metrics = evaluator.evaluate("What is Product X pricing trend?", chunks, current_year=2026)
         self.assertGreater(metrics.overall_score, 0)
         self.assertLessEqual(metrics.overall_score, 1)
 
@@ -32,6 +36,12 @@ class FailureAnalyzerTests(unittest.TestCase):
         self.assertEqual(quality, "low")
         self.assertEqual(reason, "no retrieval")
         self.assertLess(confidence, 0.2)
+
+    def test_backward_compatible_analyze_path(self) -> None:
+        analyzer = FailureAnalyzer()
+        metrics = RetrievalMetrics(0.8, 0.8, 0.8, 0.8, 0.8)
+        quality, _, _ = analyzer.analyze(metrics, retrieved_chunks=["doc"])
+        self.assertEqual(quality, "high")
 
 
 class QueryEngineTests(unittest.TestCase):
